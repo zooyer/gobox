@@ -1,0 +1,330 @@
+package shell
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+)
+
+// Command represents a parsed shell command
+type Command struct {
+	Name      string   // Command name
+	Args      []string // Command arguments
+	Stdout    string   // Redirect output (e.g., > file.txt)
+	Stdin     string   // Redirect input (e.g., < file.txt)
+	Append    string   // Append output (e.g., >> file.txt)
+	HereDoc   string   // Here document content (e.g., << END)
+	Next      *Command // Next command in logical sequence (e.g., &&)
+	PipeTo    *Command // Next command in pipeline (e.g., |)
+	IsLogical bool     // Indicates if this command is part of a logical block (e.g., &&)
+	LogicalOp string   // Logical operator (e.g., &&, ||)
+}
+
+// ParseCommand parses a shell command string into a Command structure
+func ParseCommand(input string) (*Command, error) {
+	parts := tokenize(input)
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("empty command")
+	}
+
+	var root, current *Command
+	var stdin, stdout, appendOut, hereDoc string
+	var logicalOp string
+	inHereDoc := false
+
+	for i := 0; i < len(parts); i++ {
+		switch parts[i] {
+		case "|":
+			// Create a new command for the piped part
+			if current == nil {
+				return nil, fmt.Errorf("unexpected pipe")
+			}
+			current.PipeTo = &Command{}
+			current = current.PipeTo
+		case "&&", "||":
+			// Handle logical operators
+			if current == nil {
+				return nil, fmt.Errorf("unexpected logical operator")
+			}
+			current.Next = &Command{IsLogical: true, LogicalOp: parts[i]}
+			current = current.Next
+		case ">":
+			i++
+			if i >= len(parts) {
+				return nil, fmt.Errorf("missing file after >")
+			}
+			stdout = parts[i]
+		case ">>":
+			i++
+			if i >= len(parts) {
+				return nil, fmt.Errorf("missing file after >>")
+			}
+			appendOut = parts[i]
+		case "<":
+			i++
+			if i >= len(parts) {
+				return nil, fmt.Errorf("missing file after <")
+			}
+			stdin = parts[i]
+		case "<<":
+			i++
+			if i >= len(parts) {
+				return nil, fmt.Errorf("missing terminator after <<")
+			}
+			hereDoc = parts[i]
+			inHereDoc = true
+		default:
+			// Handle here document content
+			if inHereDoc {
+				hereDoc += "\n" + parts[i]
+				continue
+			}
+
+			// Create a new command if needed
+			if current == nil {
+				current = &Command{}
+				if root == nil {
+					root = current
+				}
+			}
+			// Add command name or arguments
+			if current.Name == "" {
+				current.Name = parts[i]
+			} else {
+				current.Args = append(current.Args, parts[i])
+			}
+		}
+	}
+
+	// Assign redirection and here document values to the last command
+	if current != nil {
+		current.Stdin = stdin
+		current.Stdout = stdout
+		current.Append = appendOut
+		current.HereDoc = hereDoc
+	}
+
+	return root, nil
+}
+
+// tokenize splits the input string into parts, respecting quotes and complex operators
+func tokenize(input string) []string {
+	var tokens []string
+	var current strings.Builder
+	var inQuotes bool
+	var quoteChar rune
+
+	for i := 0; i < len(input); i++ {
+		r := rune(input[i])
+
+		switch {
+		case r == '"' || r == '\'':
+			if inQuotes && rune(quoteChar) == r {
+				inQuotes = false
+			} else if !inQuotes {
+				inQuotes = true
+				quoteChar = r
+			} else {
+				current.WriteRune(r)
+			}
+		case strings.HasPrefix(input[i:], "&&") || strings.HasPrefix(input[i:], "||"):
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+			tokens = append(tokens, input[i:i+2])
+			i++ // Skip an extra character
+		case strings.HasPrefix(input[i:], "<<") || strings.HasPrefix(input[i:], ">>"):
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+			tokens = append(tokens, input[i:i+2])
+			i++ // Skip an extra character
+		case r == '|' || r == '>' || r == '<' || r == ' ':
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+			if r != ' ' {
+				tokens = append(tokens, string(r))
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+	}
+
+	return tokens
+}
+
+// printCommand recursively prints the command structure for debugging
+func printCommand(cmd *Command, depth int) {
+	if cmd == nil {
+		return
+	}
+
+	indent := strings.Repeat("  ", depth)
+	fmt.Printf("%sCommand: %s\n", indent, cmd.Name)
+	fmt.Printf("%sArgs: %v\n", indent, cmd.Args)
+	if cmd.Stdout != "" {
+		fmt.Printf("%sRedirect Stdout to: %s\n", indent, cmd.Stdout)
+	}
+	if cmd.Append != "" {
+		fmt.Printf("%sAppend Stdout to: %s\n", indent, cmd.Append)
+	}
+	if cmd.Stdin != "" {
+		fmt.Printf("%sRedirect Stdin from: %s\n", indent, cmd.Stdin)
+	}
+	if cmd.HereDoc != "" {
+		fmt.Printf("%sHere Document:\n%s\n", indent, cmd.HereDoc)
+	}
+	if cmd.PipeTo != nil {
+		fmt.Printf("%sPiped to:\n", indent)
+		printCommand(cmd.PipeTo, depth+1)
+	}
+	if cmd.Next != nil {
+		fmt.Printf("%sNext Command (Logical %s):\n", indent, cmd.LogicalOp)
+		printCommand(cmd.Next, depth+1)
+	}
+}
+
+// ExecuteCommand executes a parsed Command structure.
+func ExecuteCommand(cmd *Command) error {
+	if cmd == nil {
+		return nil
+	}
+
+	// Execute the current command
+	err := executeSingleCommand(cmd)
+	if err != nil {
+		fmt.Printf("Error executing command '%s': %v\n", cmd.Name, err)
+	}
+
+	// Handle logical operators (&& and ||)
+	if cmd.IsLogical {
+		switch cmd.LogicalOp {
+		case "&&":
+			// Continue only if the current command succeeded
+			if err == nil {
+				return ExecuteCommand(cmd.Next)
+			}
+		case "||":
+			// Continue only if the current command failed
+			if err != nil {
+				return ExecuteCommand(cmd.Next)
+			}
+		}
+	} else if cmd.Next != nil {
+		// For sequential execution without logical operators
+		return ExecuteCommand(cmd.Next)
+	}
+
+	return nil
+}
+
+// executeSingleCommand handles a single command execution, including pipelines and I/O redirection.
+func executeSingleCommand(cmd *Command) error {
+	// Setup the command
+	c := exec.Command(cmd.Name, cmd.Args...)
+
+	// Handle input redirection
+	if cmd.Stdin != "" {
+		file, err := os.Open(cmd.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to open input file: %v", err)
+		}
+		defer file.Close()
+		c.Stdin = file
+	}
+
+	// Handle here document
+	if cmd.HereDoc != "" {
+		c.Stdin = bytes.NewBufferString(cmd.HereDoc)
+	}
+
+	// Handle output redirection
+	if cmd.Stdout != "" {
+		file, err := os.Create(cmd.Stdout)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %v", err)
+		}
+		defer file.Close()
+		c.Stdout = file
+	} else if cmd.Append != "" {
+		file, err := os.OpenFile(cmd.Append, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to open output file for appending: %v", err)
+		}
+		defer file.Close()
+		c.Stdout = file
+	} else {
+		c.Stdout = os.Stdout
+	}
+
+	// Handle pipeline
+	if cmd.PipeTo != nil {
+		pipeReader, pipeWriter, _ := os.Pipe()
+		defer pipeWriter.Close()
+
+		c.Stdout = pipeWriter
+		go func() {
+			pipeWriter.Close()
+			ExecuteCommand(cmd.PipeTo)
+		}()
+	}
+
+	// Set standard error
+	c.Stderr = os.Stderr
+
+	// Run the command
+	return c.Run()
+}
+
+//	func main() {
+//		input := `echo "Hello World" && grep Hello <<EOF
+//
+// Some here document content
+// EOF
+// `
+//
+//		cmd, err := ParseCommand(input)
+//		if err != nil {
+//			fmt.Println("Error:", err)
+//			return
+//		}
+//
+//		printCommand(cmd, 0)
+//	}
+//
+// Example usage
+func main() {
+	// Example command: echo "Hello" | grep H > output.txt && echo Done
+	cmd := &Command{
+		Name: "echo",
+		Args: []string{"Hello"},
+		PipeTo: &Command{
+			Name:   "grep",
+			Args:   []string{"H"},
+			Stdout: "output.txt",
+		},
+		IsLogical: true,
+		LogicalOp: "&&",
+		Next: &Command{
+			Name: "echo",
+			Args: []string{"Done"},
+		},
+	}
+
+	err := ExecuteCommand(cmd)
+	if err != nil {
+		fmt.Println("Execution failed:", err)
+	} else {
+		fmt.Println("Execution completed successfully.")
+	}
+}

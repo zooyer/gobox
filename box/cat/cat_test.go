@@ -1,0 +1,118 @@
+package cat
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/zooyer/gobox/box"
+)
+
+func TestCat(t *testing.T) {
+	var tests = []struct {
+		Name         string     // 用例名称
+		Opts         box.Option // 输入选项
+		ExpectStdout string     // 期望 stdout 包含的内容（可为空）
+		ExpectStderr bool       // 期望 stderr 是否有值
+		Errno        int        // 期望的错误码
+		Setup        func()     // 每个测试用例的预处理
+		Cleanup      func()     // 每个测试用例的清理逻辑
+	}{
+		{
+			Name: "Empty file", // 测试空文件
+			Opts: box.Option{Args: []string{"empty.txt"}, Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
+			Setup: func() {
+				// 创建一个空文件
+				if _, err := os.Create("empty.txt"); err != nil {
+					t.Fatal("Setup failed:", err)
+				}
+			},
+			Cleanup: func() {
+				_ = os.Remove("empty.txt")
+			},
+			ExpectStdout: "",
+			ExpectStderr: false,
+			Errno:        0,
+		},
+		{
+			Name:         "Non-existent file", // 测试不存在的文件
+			Opts:         box.Option{Args: []string{"nonexistent.txt"}, Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
+			Setup:        func() {}, // 不需要额外设置
+			Cleanup:      func() {},
+			ExpectStdout: "",
+			ExpectStderr: true, // 预期 stderr 有值
+			Errno:        3,
+		},
+		{
+			Name: "Help option", // 测试 -h 选项
+			Opts: box.Option{Args: []string{"-h"}, Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
+
+			Setup:        func() {},
+			Cleanup:      func() {},
+			ExpectStdout: "Usage:", // 只需包含部分内容
+			ExpectStderr: false,
+			Errno:        0,
+		},
+		{
+			Name:         "Version option", // 测试 -v 选项
+			Opts:         box.Option{Args: []string{"-v"}, Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
+			Setup:        func() {},
+			Cleanup:      func() {},
+			ExpectStdout: "cat: (by goland)", // 部分内容即可
+			ExpectStderr: false,
+			Errno:        0,
+		},
+		{
+			Name: "Read stdin", // 测试标准输入
+			Opts: box.Option{
+				Args:   []string{"-"},
+				Stdin:  bytes.NewBufferString("stdin content"),
+				Stdout: &bytes.Buffer{},
+				Stderr: &bytes.Buffer{},
+			},
+			Setup:        func() {},
+			Cleanup:      func() {},
+			ExpectStdout: "stdin content",
+			ExpectStderr: false,
+			Errno:        0,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			if test.Setup != nil {
+				test.Setup()
+			}
+			if test.Cleanup != nil {
+				defer test.Cleanup()
+			}
+
+			// 执行测试
+
+			test.Opts.Args = append([]string{"echo"}, test.Opts.Args...)
+			stdout := test.Opts.Stdout.(*bytes.Buffer)
+			stderr := test.Opts.Stderr.(*bytes.Buffer)
+
+			errno := Cat(context.Background(), test.Opts)
+
+			// 验证错误码
+			if errno != test.Errno {
+				t.Fatalf("Unexpected errno: got %d, want %d", errno, test.Errno)
+			}
+
+			// 验证 stdout
+			if test.ExpectStdout != "" && !strings.Contains(stdout.String(), test.ExpectStdout) {
+				t.Fatalf("Unexpected stdout: got %q, want to contain %q", stdout.String(), test.ExpectStdout)
+			}
+
+			// 验证 stderr
+			if test.ExpectStderr && stderr.Len() == 0 {
+				t.Fatalf("Expected stderr to have content, but it was empty")
+			} else if !test.ExpectStderr && stderr.Len() > 0 {
+				t.Fatalf("Expected stderr to be empty, but got %q", stderr.String())
+			}
+		})
+	}
+}
