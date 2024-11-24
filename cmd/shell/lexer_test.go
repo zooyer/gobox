@@ -122,8 +122,10 @@ func TestTokenize(t *testing.T) {
 				{Type: TokenWord, Value: "cat"},
 				{Type: TokenHereDoc, Value: "<<"},
 				{Type: TokenWord, Value: "EOF"},
+				{Type: TokenSemicolon, Value: ";"},
 				{Type: TokenWord, Value: "Hello"},
 				{Type: TokenWord, Value: "World"},
+				{Type: TokenSemicolon, Value: ";"},
 				{Type: TokenWord, Value: "EOF"},
 			},
 			err: false,
@@ -173,7 +175,8 @@ func TestTokenize(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
-			tokens, err := Tokenize(test.input)
+			//tokens, err := Tokenize(test.input)
+			tokens, err := ParseTokens(test.input)
 			if (err != nil) != test.err {
 				t.Errorf("expected error: %v, got: %v", test.err, err)
 			}
