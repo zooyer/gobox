@@ -1,9 +1,10 @@
 package shell
 
 import (
-	"github.com/zooyer/gobox/types"
 	"os"
 	"testing"
+
+	"github.com/zooyer/gobox/types"
 )
 
 func TestSh(t *testing.T) {

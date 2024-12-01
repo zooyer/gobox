@@ -75,7 +75,7 @@ func compareDir(old, new string) (same bool, err error) {
 	return old == new, nil
 }
 
-func Cd(opt types.Option, args []string) (errno int) {
+func Cd(opt types.Option, args []string) (code int) {
 	var (
 		err      error
 		end      bool
@@ -187,7 +187,7 @@ const exitUsage = `exit: exit [n]
     is that of the last command executed.
 `
 
-func Exit(opt types.Option, args []string) (errno int) {
+func Exit(opt types.Option, args []string) (code int) {
 	// TODO 获取上个命令的退出码
 
 	var err error
@@ -200,17 +200,17 @@ func Exit(opt types.Option, args []string) (errno int) {
 			return
 		}
 
-		if errno, err = strconv.Atoi(arg); err != nil {
+		if code, err = strconv.Atoi(arg); err != nil {
 			writeError(opt, err)
 			return -1
 		}
 	}
 
 	if testing.Testing() {
-		syscall.Exit(errno)
+		syscall.Exit(code)
 	}
 
-	os.Exit(errno)
+	os.Exit(code)
 
 	return
 }

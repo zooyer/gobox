@@ -2,10 +2,11 @@ package echo
 
 import (
 	"fmt"
-	"github.com/zooyer/gobox/box"
-	"github.com/zooyer/gobox/types"
 	"runtime"
 	"strings"
+
+	"github.com/zooyer/gobox/box"
+	"github.com/zooyer/gobox/types"
 )
 
 type Echo struct {
@@ -63,7 +64,7 @@ func (echo *Echo) IsDarwin() bool {
 	return os == "darwin"
 }
 
-func (echo *Echo) Main(args []string) (errno int) {
+func (echo *Echo) Main(args []string) (code int) {
 	var (
 		e, n bool
 		end  bool
@@ -107,7 +108,7 @@ func (echo *Echo) Main(args []string) (errno int) {
 	}
 
 	if _, err := doPrint(echo.Option.Stdout, result); err != nil {
-		errno = 1
+		code = 1
 		writeError(echo.Option, err)
 	}
 

@@ -7,9 +7,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/zooyer/gobox/types"
 	"io"
 	"strings"
+
+	"github.com/zooyer/gobox/types"
 )
 
 const version = "1.0.0"
@@ -70,7 +71,7 @@ func help(name string, option types.Option) {
 	_, _ = fmt.Fprintf(option.Stdout, usage, name, version, name, name, name)
 }
 
-func Sh(option types.Option, args ...string) (errno int) {
+func Sh(option types.Option, args ...string) (code int) {
 	var (
 		err error
 		opt ShOption

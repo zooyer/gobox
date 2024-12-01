@@ -15,7 +15,7 @@ type Option struct {
 }
 
 type Process interface {
-	Main(args []string) (errno int)
+	Main(args []string) (code int)
 	Kill()
 	Wait()
 	Signal(signal os.Signal)
@@ -23,7 +23,7 @@ type Process interface {
 
 type NewFunc func(option Option) Process
 
-type MainFunc func(opt Option, args []string) (errno int)
+type MainFunc func(opt Option, args []string) (code int)
 
 // head/tail/wc/nl/tac/yes/tee/sort
 /*

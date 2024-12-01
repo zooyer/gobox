@@ -7,18 +7,18 @@ import (
 
 type Bool struct {
 	box.Process
-	errno int
+	code int
 }
 
-func (b *Bool) Main(args []string) (errno int) {
-	return b.errno
+func (b *Bool) Main(args []string) (code int) {
+	return b.code
 }
 
-func New(errno int, option types.Option) types.Process {
+func New(code int, option types.Option) types.Process {
 	return &Bool{
 		Process: box.Process{
 			Option: option,
 		},
-		errno: errno,
+		code: code,
 	}
 }

@@ -51,12 +51,12 @@ func TestEcho(t *testing.T) {
 				}
 			)
 
-			var echo = New(option)
+			var echo = New(option).(*Echo)
 			echo.GOOS = runtime.GOOS
 
 			// 执行测试
-			if errno := echo.Main(append([]string{"echo"}, test.Args...)); errno != 0 {
-				t.Fatalf("[%s] Unexpected errno: got %d, want 0", test.Name, errno)
+			if code := echo.Main(append([]string{"echo"}, test.Args...)); code != 0 {
+				t.Fatalf("[%s] Unexpected code: got %d, want 0", test.Name, code)
 			}
 
 			// 比较标准输出

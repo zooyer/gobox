@@ -3,12 +3,13 @@ package cat
 import (
 	"errors"
 	"fmt"
-	"github.com/zooyer/gobox/box"
-	"github.com/zooyer/gobox/types"
 	"io"
 	"os"
 	"slices"
 	"sort"
+
+	"github.com/zooyer/gobox/box"
+	"github.com/zooyer/gobox/types"
 )
 
 const version = `cat: (by goland) 1.0
@@ -102,9 +103,9 @@ func readFile(filename string, out io.Writer) (err error) {
 }
 
 // 读取文件到out，如果错误则写入err并返回错误码
-func readFileErrno(filename string, out, err io.Writer) (errno int) {
+func readFileCode(filename string, out, err io.Writer) (code int) {
 	if e := readFile(filename, out); e != nil {
-		errno = 3
+		code = 3
 		_, _ = fmt.Fprintln(err, fmt.Sprintf("cat: %s: %s", filename, e.Error()))
 	}
 
@@ -115,13 +116,13 @@ type Cat struct {
 	box.Process
 }
 
-func (c *Cat) Main(args []string) (errno int) {
+func (c *Cat) Main(args []string) (code int) {
 	if len(args) == 1 {
 		args = append(args, "-")
 	}
 
 	var (
-		eno int
+		cod int
 		err error
 		end bool
 	)
@@ -134,8 +135,8 @@ func (c *Cat) Main(args []string) (errno int) {
 
 	for _, arg := range args[1:] {
 		if end {
-			if eno = readFileErrno(arg, stdout, stderr); eno != 0 {
-				errno = eno
+			if cod = readFileCode(arg, stdout, stderr); cod != 0 {
+				code = cod
 			}
 			continue
 		}
@@ -149,16 +150,16 @@ func (c *Cat) Main(args []string) (errno int) {
 			_, _ = fmt.Fprint(stdout, version)
 		case "-", "-i", "--stdin":
 			if _, err = io.Copy(stdout, stdin); err != nil {
-				errno = 2
+				code = 2
 			}
 		default:
 			if arg[0] == '-' {
 				_, _ = fmt.Fprintln(stderr, fmt.Sprintf("cat: invalid option '%s'", arg))
 				_, _ = fmt.Fprintln(stderr, "Try 'cat --help' for more information.")
-				errno = 1
+				code = 1
 			} else {
-				if eno = readFileErrno(arg, stdout, stderr); eno != 0 {
-					errno = eno
+				if cod = readFileCode(arg, stdout, stderr); cod != 0 {
+					code = cod
 				}
 			}
 		}

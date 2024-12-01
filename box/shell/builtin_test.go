@@ -14,7 +14,7 @@ func TestCd(t *testing.T) {
 	}
 
 	var (
-		errno  int
+		code   int
 		newDir = "../"
 		option = types.Option{
 			Dir:    "",
@@ -25,8 +25,8 @@ func TestCd(t *testing.T) {
 		}
 	)
 
-	if errno = Cd(option, []string{"cd", newDir}); errno != 0 {
-		t.Fatal("Cd failed:", errno)
+	if code = Cd(option, []string{"cd", newDir}); code != 0 {
+		t.Fatal("Cd failed:", code)
 	}
 
 	if newDir, err = os.Getwd(); err != nil {
@@ -40,8 +40,8 @@ func TestCd(t *testing.T) {
 	t.Log("old:", oldDir)
 	t.Log("new:", newDir)
 
-	if errno = Cd(option, []string{"cd", "-"}); errno != 0 {
-		t.Fatal("Cd failed:", errno)
+	if code = Cd(option, []string{"cd", "-"}); code != 0 {
+		t.Fatal("Cd failed:", code)
 	}
 
 	if newDir, err = os.Getwd(); err != nil {
@@ -58,7 +58,7 @@ func TestCd(t *testing.T) {
 
 func TestExit(t *testing.T) {
 	var (
-		errno  int
+		code   int
 		option = types.Option{
 			Dir:    "",
 			Env:    nil,
@@ -68,15 +68,15 @@ func TestExit(t *testing.T) {
 		}
 	)
 
-	if errno = Exit(option, []string{"exit", "0"}); errno != 0 {
-		t.Fatal("Exit failed:", errno)
+	if code = Exit(option, []string{"exit", "0"}); code != 0 {
+		t.Fatal("Exit failed:", code)
 	}
 
-	if errno = Exit(option, []string{"exit", "1"}); errno != 1 {
-		t.Fatal("Exit failed:", errno)
+	if code = Exit(option, []string{"exit", "1"}); code != 1 {
+		t.Fatal("Exit failed:", code)
 	}
 
-	if errno = Exit(option, []string{"exit", "99"}); errno != 99 {
-		t.Fatal("Exit failed:", errno)
+	if code = Exit(option, []string{"exit", "99"}); code != 99 {
+		t.Fatal("Exit failed:", code)
 	}
 }

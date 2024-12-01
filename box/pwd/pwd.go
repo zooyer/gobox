@@ -3,10 +3,11 @@ package pwd
 import (
 	"errors"
 	"fmt"
-	"github.com/zooyer/gobox/box"
-	"github.com/zooyer/gobox/types"
 	"os"
 	"path/filepath"
+
+	"github.com/zooyer/gobox/box"
+	"github.com/zooyer/gobox/types"
 )
 
 const version = "pwd (by golang) 1.0.0"
@@ -63,7 +64,7 @@ func parse(args []string) (option Option, err error) {
 	return
 }
 
-func (p *Pwd) Main(args []string) (errno int) {
+func (p *Pwd) Main(args []string) (code int) {
 	option, err := parse(args[1:])
 	if err != nil {
 		writeError(p.Option, err)

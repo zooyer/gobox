@@ -1,9 +1,13 @@
 package bool
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/zooyer/gobox/types"
+)
 
 func TestTrue(t *testing.T) {
-	if True().Main(nil) != 0 {
+	if True(types.Option{}).Main(nil) != 0 {
 		t.Fatal("true failed")
 	}
 }

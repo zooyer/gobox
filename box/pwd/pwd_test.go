@@ -2,10 +2,11 @@ package pwd
 
 import (
 	"bytes"
-	"github.com/zooyer/gobox/types"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/zooyer/gobox/types"
 )
 
 // Helper function to call system `pwd` with options

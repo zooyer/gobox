@@ -59,7 +59,7 @@ func (sh *Gosh) ps1(option types.Option) {
 	_, _ = fmt.Fprintf(option.Stdout, "%s@%s:%s$ ", host, usr.Username, dir)
 }
 
-func (sh *Gosh) Run(stdin io.Reader, option types.Option) (errno int, err error) {
+func (sh *Gosh) Run(stdin io.Reader, option types.Option) (code int, err error) {
 	var (
 		wg      sync.WaitGroup
 		ctx     = context.Background()
@@ -87,7 +87,7 @@ func (sh *Gosh) Run(stdin io.Reader, option types.Option) (errno int, err error)
 	}()
 
 	for command := range command {
-		if errno, err = sh.Exec(&command, option); err != nil {
+		if code, err = sh.Exec(&command, option); err != nil {
 			writeError(option, err)
 			return 2, err
 		}
@@ -96,7 +96,7 @@ func (sh *Gosh) Run(stdin io.Reader, option types.Option) (errno int, err error)
 	return
 }
 
-func (sh *Gosh) Exec(command *Command, option types.Option) (errno int, err error) {
+func (sh *Gosh) Exec(command *Command, option types.Option) (code int, err error) {
 	if command == nil {
 		return 0, errors.New("nil command")
 	}
@@ -124,13 +124,13 @@ func (sh *Gosh) Exec(command *Command, option types.Option) (errno int, err erro
 		pipeOption.Stdin, thisOption.Stdout = stdin, stdout
 
 		var (
-			pipeErr   error
-			pipeErrno int
+			pipeErr  error
+			pipeCode int
 		)
 
 		// 使用管道的退出状态码
 		defer func() {
-			if errno = pipeErrno; err == nil && pipeErr != nil {
+			if code = pipeCode; err == nil && pipeErr != nil {
 				err = pipeErr
 			}
 		}()
@@ -139,7 +139,7 @@ func (sh *Gosh) Exec(command *Command, option types.Option) (errno int, err erro
 		go func() {
 			defer wg.Done()
 			defer deferClose(&err, stdin.Close)
-			if pipeErrno, pipeErr = sh.Exec(command.Pipe, pipeOption); err != nil {
+			if pipeCode, pipeErr = sh.Exec(command.Pipe, pipeOption); err != nil {
 				return
 			}
 		}()
@@ -189,7 +189,7 @@ func (sh *Gosh) Exec(command *Command, option types.Option) (errno int, err erro
 			go cmd(thisOption, command.CmdArgs())
 		}
 
-		errno = cmd(thisOption, command.CmdArgs())
+		code = cmd(thisOption, command.CmdArgs())
 	case sh.Command != nil && sh.Command[command.Path] != nil:
 		var cmd = sh.Command[command.Path](thisOption)
 
@@ -197,7 +197,7 @@ func (sh *Gosh) Exec(command *Command, option types.Option) (errno int, err erro
 			go cmd.Main(command.CmdArgs())
 		}
 
-		errno = cmd.Main(command.CmdArgs())
+		code = cmd.Main(command.CmdArgs())
 	default:
 		var cmd = exec.Command(command.Path, command.Args...)
 		cmd.Dir = thisOption.Dir
@@ -217,7 +217,7 @@ func (sh *Gosh) Exec(command *Command, option types.Option) (errno int, err erro
 				return
 			}
 
-			errno = cmd.ProcessState.ExitCode()
+			code = cmd.ProcessState.ExitCode()
 		}
 	}
 
@@ -226,15 +226,15 @@ func (sh *Gosh) Exec(command *Command, option types.Option) (errno int, err erro
 	}
 
 	// 执行 与
-	if command.And != nil && errno == 0 {
-		if errno, err = sh.Exec(command.And, option); err != nil {
+	if command.And != nil && code == 0 {
+		if code, err = sh.Exec(command.And, option); err != nil {
 			return
 		}
 	}
 
 	// 执行 或
-	if command.Or != nil && errno != 0 {
-		if errno, err = sh.Exec(command.Or, option); err != nil {
+	if command.Or != nil && code != 0 {
+		if code, err = sh.Exec(command.Or, option); err != nil {
 			return
 		}
 	}
@@ -244,7 +244,7 @@ func (sh *Gosh) Exec(command *Command, option types.Option) (errno int, err erro
 	return
 }
 
-func (sh *Gosh) Main(args []string) (errno int) {
+func (sh *Gosh) Main(args []string) (code int) {
 	var (
 		err    error
 		opt    Option
@@ -282,7 +282,7 @@ func (sh *Gosh) Main(args []string) (errno int) {
 			defer func() {
 				if err = file.Close(); err != nil {
 					writeError(option, err)
-					errno = 4
+					code = 4
 				}
 			}()
 
@@ -303,7 +303,7 @@ func (sh *Gosh) Main(args []string) (errno int) {
 
 	sh.ps1(option)
 	for command := range command {
-		if errno, err = sh.Exec(&command, option); err != nil {
+		if code, err = sh.Exec(&command, option); err != nil {
 			writeError(option, err)
 			return 2
 		}

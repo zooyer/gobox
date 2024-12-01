@@ -1,19 +1,18 @@
 package test
 
 import (
-	"github.com/zooyer/gobox/types"
 	"testing"
+
+	"github.com/zooyer/gobox/types"
 )
 
 func TestNew(t *testing.T) {
 	var option = types.Option{
-		Dir:     "",
-		Args:    nil,
-		Envs:    nil,
-		Stdin:   nil,
-		Stdout:  nil,
-		Stderr:  nil,
-		Syscall: types.Syscall{},
+		Dir:    "",
+		Env:    nil,
+		Stdin:  nil,
+		Stdout: nil,
+		Stderr: nil,
 	}
 
 	var test = New(option)

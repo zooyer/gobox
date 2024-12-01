@@ -12,7 +12,7 @@ type Test struct {
 	box.Process
 }
 
-func (t *Test) Main(args []string) (errno int) {
+func (t *Test) Main(args []string) (code int) {
 	t.Start()
 	defer t.Stop()
 
