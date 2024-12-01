@@ -7,7 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/zooyer/regis/agent/cmd/command"
+	"github.com/zooyer/gobox/types"
 	"io"
 	"strings"
 )
@@ -66,11 +66,11 @@ type ShOption struct {
 	ShConfigOption
 }
 
-func help(name string, attr command.Attr) {
-	_, _ = fmt.Fprintf(attr.Stdout, usage, name, version, name, name, name)
+func help(name string, option types.Option) {
+	_, _ = fmt.Fprintf(option.Stdout, usage, name, version, name, name, name)
 }
 
-func Sh(attr command.Attr, args ...string) (errno int) {
+func Sh(option types.Option, args ...string) (errno int) {
 	var (
 		err error
 		opt ShOption
@@ -79,19 +79,19 @@ func Sh(attr command.Attr, args ...string) (errno int) {
 
 	// 注册命令行参数
 	if err = bindOption(set, &opt); err != nil {
-		writeError(attr, err)
+		writeError(option, err)
 		return 1
 	}
 
 	// 解析命令行参数
 	if err = set.Parse(args); err != nil {
-		writeError(attr, err)
+		writeError(option, err)
 		return 2
 	}
 
 	data, err := json.MarshalIndent(opt, "", "  ")
 	if err != nil {
-		writeError(attr, err)
+		writeError(option, err)
 		return 2
 	}
 
@@ -100,22 +100,22 @@ func Sh(attr command.Attr, args ...string) (errno int) {
 	// TODO 判断option
 	switch {
 	case opt.Help:
-		help("sh", attr)
+		help("sh", option)
 		return 0
 	}
 
 	var (
 		line  string
-		stdin      = bufio.NewReader(attr.Stdin)
+		stdin      = bufio.NewReader(option.Stdin)
 		delim byte = '\n'
 		//end    string
 		buffer bytes.Buffer
 	)
 	for {
 		if buffer.Len() > 0 {
-			fmt.Fprint(attr.Stdout, "> ")
+			fmt.Fprint(option.Stdout, "> ")
 		} else {
-			fmt.Fprint(attr.Stdout, "$ ")
+			fmt.Fprint(option.Stdout, "$ ")
 		}
 		//stdin.ReadLine()
 		if line, err = stdin.ReadString(delim); err != nil {
@@ -123,7 +123,7 @@ func Sh(attr command.Attr, args ...string) (errno int) {
 				break
 			}
 
-			writeError(attr, err)
+			writeError(option, err)
 
 			continue
 		}

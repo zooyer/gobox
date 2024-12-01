@@ -1,13 +1,12 @@
 package pwd
 
 import (
-	"context"
 	"errors"
 	"fmt"
+	"github.com/zooyer/gobox/box"
+	"github.com/zooyer/gobox/types"
 	"os"
 	"path/filepath"
-
-	"github.com/zooyer/gobox/box"
 )
 
 const version = "pwd (by golang) 1.0.0"
@@ -21,6 +20,10 @@ Print the full filename of the current working directory.
       --version   output version information and exit
 `
 
+type Pwd struct {
+	box.Process
+}
+
 type Option struct {
 	Logical  bool
 	Physical bool
@@ -28,7 +31,7 @@ type Option struct {
 	Version  bool
 }
 
-func writeError(opt box.Option, err error) {
+func writeError(opt types.Option, err error) {
 	_, _ = fmt.Fprintln(opt.Stderr, "pwd:", err)
 }
 
@@ -60,10 +63,10 @@ func parse(args []string) (option Option, err error) {
 	return
 }
 
-func Pwd(ctx context.Context, opt box.Option) (errno int) {
-	option, err := parse(opt.Args[1:])
+func (p *Pwd) Main(args []string) (errno int) {
+	option, err := parse(args[1:])
 	if err != nil {
-		writeError(opt, err)
+		writeError(p.Option, err)
 		return 1
 	}
 
@@ -71,10 +74,10 @@ func Pwd(ctx context.Context, opt box.Option) (errno int) {
 
 	switch {
 	case option.Help:
-		_, _ = fmt.Fprint(opt.Stdout, usage)
+		_, _ = fmt.Fprint(p.Option.Stdout, usage)
 		return
 	case option.Version:
-		_, _ = fmt.Fprint(opt.Stdout, version)
+		_, _ = fmt.Fprint(p.Option.Stdout, version)
 		return
 	case option.Physical:
 		if cwd, err = os.Getwd(); err == nil {
@@ -93,11 +96,19 @@ func Pwd(ctx context.Context, opt box.Option) (errno int) {
 	}
 
 	if err != nil {
-		writeError(opt, err)
+		writeError(p.Option, err)
 		return 2
 	}
 
-	_, _ = fmt.Fprintln(opt.Stdout, cwd)
+	_, _ = fmt.Fprintln(p.Option.Stdout, cwd)
 
 	return
+}
+
+func New(opt types.Option) types.Process {
+	return &Pwd{
+		Process: box.Process{
+			Option: opt,
+		},
+	}
 }

@@ -3,12 +3,12 @@ package main
 import (
 	"os"
 
-	"github.com/zooyer/regis/agent/cmd/command"
-	"github.com/zooyer/regis/agent/cmd/command/bool"
+	"github.com/zooyer/gobox/box/bool"
+	"github.com/zooyer/gobox/types"
 )
 
 func main() {
-	var attr = command.Attr{
+	var opt = types.Option{
 		Dir:    "",
 		Env:    os.Environ(),
 		Stdin:  os.Stdin,
@@ -16,5 +16,5 @@ func main() {
 		Stderr: os.Stderr,
 	}
 
-	os.Exit(bool.True(attr, os.Args[1:]...))
+	os.Exit(bool.True(opt).Main(os.Args))
 }

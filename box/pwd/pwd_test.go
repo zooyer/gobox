@@ -2,12 +2,10 @@ package pwd
 
 import (
 	"bytes"
-	"context"
+	"github.com/zooyer/gobox/types"
 	"os/exec"
 	"strings"
 	"testing"
-
-	"github.com/zooyer/gobox/box"
 )
 
 // Helper function to call system `pwd` with options
@@ -43,16 +41,15 @@ func TestPwd(t *testing.T) {
 
 			// Run our Pwd implementation
 			var (
-				stdout, stderr bytes.Buffer
-				option         = box.Option{
-					Args:   append([]string{"echo"}, test.Args...),
+				stdout bytes.Buffer
+				stderr bytes.Buffer
+				option = types.Option{
 					Stdout: &stdout,
 					Stderr: &stderr,
 				}
 			)
 
-			code := Pwd(context.Background(), option)
-			if code != test.ExpectedCode {
+			if code := New(option).Main(append([]string{"echo"}, test.Args...)); code != test.ExpectedCode {
 				t.Errorf("[%s] Unexpected exit code: got %d, want %d", test.Name, code, test.ExpectedCode)
 			}
 

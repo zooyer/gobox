@@ -2,13 +2,12 @@ package echo
 
 import (
 	"bytes"
-	"context"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
 
-	"github.com/zooyer/gobox/box"
+	"github.com/zooyer/gobox/types"
 )
 
 // systemEchoOutput 使用系统 echo 命令生成期望的输出
@@ -22,8 +21,6 @@ func systemEchoOutput(args []string) string {
 }
 
 func TestEcho(t *testing.T) {
-	IsDarwin = runtime.GOOS == "darwin"
-
 	var tests = []struct {
 		Name string   // 测试用例名称
 		Args []string // Echo 的输入参数
@@ -48,15 +45,17 @@ func TestEcho(t *testing.T) {
 			// 调用自定义 Echo 函数
 			var (
 				stdout, stderr bytes.Buffer
-				option         = box.Option{
-					Args:   append([]string{"echo"}, test.Args...),
+				option         = types.Option{
 					Stdout: &stdout,
 					Stderr: &stderr,
 				}
 			)
 
+			var echo = New(option)
+			echo.GOOS = runtime.GOOS
+
 			// 执行测试
-			if errno := Echo(context.Background(), option); errno != 0 {
+			if errno := echo.Main(append([]string{"echo"}, test.Args...)); errno != 0 {
 				t.Fatalf("[%s] Unexpected errno: got %d, want 0", test.Name, errno)
 			}
 

@@ -1,11 +1,11 @@
-package main
+package shell
 
 import (
 	"reflect"
 	"testing"
 )
 
-func TestTokenize(t *testing.T) {
+func TestParseTokens(t *testing.T) {
 	var tests = []struct {
 		input    string
 		expected []Token
@@ -117,16 +117,11 @@ func TestTokenize(t *testing.T) {
 		},
 		{
 			// here doc 重定向
-			input: "cat << EOF\nHello World\nEOF",
+			input: "cat << EOF\nHello World\nEOF\n",
 			expected: []Token{
 				{Type: TokenWord, Value: "cat"},
-				{Type: TokenHereDoc, Value: "<<"},
-				{Type: TokenWord, Value: "EOF"},
+				{Type: TokenHeredoc, Value: "Hello World"},
 				{Type: TokenSemicolon, Value: ";"},
-				{Type: TokenWord, Value: "Hello"},
-				{Type: TokenWord, Value: "World"},
-				{Type: TokenSemicolon, Value: ";"},
-				{Type: TokenWord, Value: "EOF"},
 			},
 			err: false,
 		},
@@ -154,9 +149,11 @@ func TestTokenize(t *testing.T) {
 		},
 		{
 			// 错误的引号（未闭合）
-			input:    "echo \"hello",
-			expected: nil,
-			err:      true,
+			input: "echo \"hello",
+			expected: []Token{
+				{Type: TokenWord, Value: "echo"},
+			},
+			err: true,
 		},
 		{
 			// 错误的多重分号
@@ -171,11 +168,22 @@ func TestTokenize(t *testing.T) {
 			},
 			err: false,
 		},
+		{
+			input: "cat << EOF &\nBackground task\nEOF\necho \"HereDoc submitted\"",
+			expected: []Token{
+				{Type: TokenWord, Value: "cat"},
+				{Type: TokenBackground, Value: "&"},
+				{Type: TokenHeredoc, Value: "Background task"},
+				{Type: TokenSemicolon, Value: ";"},
+				{Type: TokenWord, Value: "echo"},
+				{Type: TokenWord, Value: "HereDoc submitted"},
+			},
+			err: false,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
-			//tokens, err := Tokenize(test.input)
 			tokens, err := ParseTokens(test.input)
 			if (err != nil) != test.err {
 				t.Errorf("expected error: %v, got: %v", test.err, err)

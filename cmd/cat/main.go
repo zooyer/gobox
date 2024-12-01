@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/zooyer/regis/agent/cmd/command/cat"
 	"os"
 
-	"github.com/zooyer/regis/agent/cmd/command"
+	"github.com/zooyer/gobox/box/cat"
+	"github.com/zooyer/gobox/types"
 )
 
 func main() {
-	var attr = command.Attr{
+	var opt = types.Option{
 		Dir:    "",
 		Env:    os.Environ(),
 		Stdin:  os.Stdin,
@@ -16,5 +16,5 @@ func main() {
 		Stderr: os.Stderr,
 	}
 
-	os.Exit(cat.Cat(attr, os.Args[1:]...))
+	os.Exit(cat.New(opt).Main(os.Args))
 }

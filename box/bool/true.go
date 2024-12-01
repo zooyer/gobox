@@ -1,11 +1,7 @@
 package bool
 
-import (
-	"context"
+import "github.com/zooyer/gobox/types"
 
-	"github.com/zooyer/gobox/box"
-)
-
-func True(ctx context.Context, opt box.Option) (errno int) {
-	return 0
+func True(opt types.Option) types.Process {
+	return New(0, opt)
 }

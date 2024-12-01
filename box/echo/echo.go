@@ -1,13 +1,17 @@
 package echo
 
 import (
-	"context"
 	"fmt"
+	"github.com/zooyer/gobox/box"
+	"github.com/zooyer/gobox/types"
 	"runtime"
 	"strings"
-
-	"github.com/zooyer/gobox/box"
 )
+
+type Echo struct {
+	box.Process
+	GOOS string
+}
 
 // 转义字符映射
 var escapeMap = map[byte]string{
@@ -46,20 +50,27 @@ func interpretEscapes(input string) string {
 	return builder.String()
 }
 
-func writeError(opt box.Option, err error) {
+func writeError(opt types.Option, err error) {
 	_, _ = fmt.Fprintln(opt.Stderr, "echo:", err)
 }
 
-var IsDarwin = runtime.GOOS == "darwin"
+func (echo *Echo) IsDarwin() bool {
+	var os = runtime.GOOS
+	if echo.GOOS != "" {
+		os = echo.GOOS
+	}
 
-func Echo(ctx context.Context, opt box.Option) (errno int) {
+	return os == "darwin"
+}
+
+func (echo *Echo) Main(args []string) (errno int) {
 	var (
 		e, n bool
 		end  bool
-		out  = make([]string, 0, len(opt.Args))
+		out  = make([]string, 0, len(args))
 	)
 
-	for _, arg := range opt.Args[1:] {
+	for _, arg := range args[1:] {
 		if end {
 			out = append(out, arg)
 			continue
@@ -71,7 +82,7 @@ func Echo(ctx context.Context, opt box.Option) (errno int) {
 		case "--":
 			end = true
 		case "-e":
-			if !IsDarwin {
+			if !echo.IsDarwin() {
 				e = true
 				break
 			}
@@ -95,10 +106,19 @@ func Echo(ctx context.Context, opt box.Option) (errno int) {
 		doPrint = fmt.Fprint
 	}
 
-	if _, err := doPrint(opt.Stdout, result); err != nil {
+	if _, err := doPrint(echo.Option.Stdout, result); err != nil {
 		errno = 1
-		writeError(opt, err)
+		writeError(echo.Option, err)
 	}
 
 	return
+}
+
+func New(opt types.Option) types.Process {
+	return &Echo{
+		Process: box.Process{
+			Option: opt,
+		},
+		GOOS: runtime.GOOS,
+	}
 }

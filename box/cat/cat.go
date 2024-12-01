@@ -1,15 +1,14 @@
 package cat
 
 import (
-	"context"
 	"errors"
 	"fmt"
+	"github.com/zooyer/gobox/box"
+	"github.com/zooyer/gobox/types"
 	"io"
 	"os"
 	"slices"
 	"sort"
-
-	"github.com/zooyer/gobox/box"
 )
 
 const version = `cat: (by goland) 1.0
@@ -80,7 +79,7 @@ func copyWithBuffer(dst io.Writer, src io.Reader, size int) (err error) {
 }
 
 // 读取文件内容并输出到指定的 Writer
-func readFile(ctx context.Context, filename string, out io.Writer) (err error) {
+func readFile(filename string, out io.Writer) (err error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return
@@ -99,12 +98,12 @@ func readFile(ctx context.Context, filename string, out io.Writer) (err error) {
 
 	var size = getBufferSize(info.Size())
 
-	return copyWithBuffer(out, withContext(ctx, file), size)
+	return copyWithBuffer(out, file, size)
 }
 
 // 读取文件到out，如果错误则写入err并返回错误码
-func readFileErrno(ctx context.Context, filename string, out, err io.Writer) (errno int) {
-	if e := readFile(ctx, filename, out); e != nil {
+func readFileErrno(filename string, out, err io.Writer) (errno int) {
+	if e := readFile(filename, out); e != nil {
 		errno = 3
 		_, _ = fmt.Fprintln(err, fmt.Sprintf("cat: %s: %s", filename, e.Error()))
 	}
@@ -112,9 +111,13 @@ func readFileErrno(ctx context.Context, filename string, out, err io.Writer) (er
 	return
 }
 
-func Cat(ctx context.Context, opt box.Option) (errno int) {
-	if len(opt.Args) == 1 {
-		opt.Args = []string{"-"}
+type Cat struct {
+	box.Process
+}
+
+func (c *Cat) Main(args []string) (errno int) {
+	if len(args) == 1 {
+		args = append(args, "-")
 	}
 
 	var (
@@ -123,9 +126,15 @@ func Cat(ctx context.Context, opt box.Option) (errno int) {
 		end bool
 	)
 
-	for _, arg := range opt.Args[1:] {
+	var (
+		stdin  = c.Option.Stdin
+		stdout = c.Option.Stdout
+		stderr = c.Option.Stderr
+	)
+
+	for _, arg := range args[1:] {
 		if end {
-			if eno = readFileErrno(ctx, arg, opt.Stdout, opt.Stderr); eno != 0 {
+			if eno = readFileErrno(arg, stdout, stderr); eno != 0 {
 				errno = eno
 			}
 			continue
@@ -135,20 +144,20 @@ func Cat(ctx context.Context, opt box.Option) (errno int) {
 		case "--":
 			end = true
 		case "-h", "--help":
-			_, _ = fmt.Fprint(opt.Stdout, usage)
+			_, _ = fmt.Fprint(stdout, usage)
 		case "-v", "--version":
-			_, _ = fmt.Fprint(opt.Stdout, version)
+			_, _ = fmt.Fprint(stdout, version)
 		case "-", "-i", "--stdin":
-			if _, err = io.Copy(opt.Stdout, withContext(ctx, opt.Stdin)); err != nil {
+			if _, err = io.Copy(stdout, stdin); err != nil {
 				errno = 2
 			}
 		default:
 			if arg[0] == '-' {
-				_, _ = fmt.Fprintln(opt.Stderr, fmt.Sprintf("cat: invalid option '%s'", arg))
-				_, _ = fmt.Fprintln(opt.Stderr, "Try 'cat --help' for more information.")
+				_, _ = fmt.Fprintln(stderr, fmt.Sprintf("cat: invalid option '%s'", arg))
+				_, _ = fmt.Fprintln(stderr, "Try 'cat --help' for more information.")
 				errno = 1
 			} else {
-				if eno = readFileErrno(ctx, arg, opt.Stdout, opt.Stderr); eno != 0 {
+				if eno = readFileErrno(arg, stdout, stderr); eno != 0 {
 					errno = eno
 				}
 			}
@@ -156,4 +165,12 @@ func Cat(ctx context.Context, opt box.Option) (errno int) {
 	}
 
 	return
+}
+
+func New(opt types.Option) types.Process {
+	return &Cat{
+		Process: box.Process{
+			Option: opt,
+		},
+	}
 }

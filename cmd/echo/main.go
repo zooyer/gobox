@@ -1,22 +1,20 @@
 package main
 
 import (
-	"context"
 	"os"
 
-	"github.com/zooyer/gobox/box"
 	"github.com/zooyer/gobox/box/echo"
+	"github.com/zooyer/gobox/types"
 )
 
 func main() {
-	var opt = box.Option{
+	var opt = types.Option{
 		Dir:    "",
-		Envs:   os.Environ(),
-		Args:   os.Args,
+		Env:    os.Environ(),
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
 
-	os.Exit(echo.Echo(context.Background(), opt))
+	os.Exit(echo.New(opt).Main(os.Args))
 }

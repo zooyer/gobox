@@ -1,14 +1,13 @@
 package shell
 
 import (
+	"github.com/zooyer/gobox/types"
 	"os"
 	"testing"
-
-	"github.com/zooyer/regis/agent/cmd/command"
 )
 
 func TestSh(t *testing.T) {
-	var attr = command.Attr{
+	var opt = types.Option{
 		Dir:    "",
 		Env:    nil,
 		Stdin:  os.Stdin,
@@ -16,7 +15,7 @@ func TestSh(t *testing.T) {
 		Stderr: os.Stderr,
 	}
 
-	Sh(attr, "--debug")
+	Sh(opt, "--debug")
 }
 
 func TestShWithEnv(t *testing.T) {

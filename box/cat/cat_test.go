@@ -2,27 +2,28 @@ package cat
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/zooyer/gobox/box"
+	"github.com/zooyer/gobox/types"
 )
 
 func TestCat(t *testing.T) {
 	var tests = []struct {
-		Name         string     // 用例名称
-		Opts         box.Option // 输入选项
-		ExpectStdout string     // 期望 stdout 包含的内容（可为空）
-		ExpectStderr bool       // 期望 stderr 是否有值
-		Errno        int        // 期望的错误码
-		Setup        func()     // 每个测试用例的预处理
-		Cleanup      func()     // 每个测试用例的清理逻辑
+		Name         string // 用例名称
+		Args         []string
+		Opts         types.Option // 输入选项
+		ExpectStdout string       // 期望 stdout 包含的内容（可为空）
+		ExpectStderr bool         // 期望 stderr 是否有值
+		Errno        int          // 期望的错误码
+		Setup        func()       // 每个测试用例的预处理
+		Cleanup      func()       // 每个测试用例的清理逻辑
 	}{
 		{
 			Name: "Empty file", // 测试空文件
-			Opts: box.Option{Args: []string{"empty.txt"}, Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
+			Args: []string{"empty.txt"},
+			Opts: types.Option{Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
 			Setup: func() {
 				// 创建一个空文件
 				if _, err := os.Create("empty.txt"); err != nil {
@@ -38,7 +39,8 @@ func TestCat(t *testing.T) {
 		},
 		{
 			Name:         "Non-existent file", // 测试不存在的文件
-			Opts:         box.Option{Args: []string{"nonexistent.txt"}, Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
+			Args:         []string{"nonexistent.txt"},
+			Opts:         types.Option{Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
 			Setup:        func() {}, // 不需要额外设置
 			Cleanup:      func() {},
 			ExpectStdout: "",
@@ -47,7 +49,8 @@ func TestCat(t *testing.T) {
 		},
 		{
 			Name: "Help option", // 测试 -h 选项
-			Opts: box.Option{Args: []string{"-h"}, Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
+			Args: []string{"-h"},
+			Opts: types.Option{Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
 
 			Setup:        func() {},
 			Cleanup:      func() {},
@@ -57,7 +60,8 @@ func TestCat(t *testing.T) {
 		},
 		{
 			Name:         "Version option", // 测试 -v 选项
-			Opts:         box.Option{Args: []string{"-v"}, Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
+			Args:         []string{"-v"},
+			Opts:         types.Option{Stdin: nil, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}},
 			Setup:        func() {},
 			Cleanup:      func() {},
 			ExpectStdout: "cat: (by goland)", // 部分内容即可
@@ -66,8 +70,8 @@ func TestCat(t *testing.T) {
 		},
 		{
 			Name: "Read stdin", // 测试标准输入
-			Opts: box.Option{
-				Args:   []string{"-"},
+			Args: []string{"-"},
+			Opts: types.Option{
 				Stdin:  bytes.NewBufferString("stdin content"),
 				Stdout: &bytes.Buffer{},
 				Stderr: &bytes.Buffer{},
@@ -90,15 +94,11 @@ func TestCat(t *testing.T) {
 			}
 
 			// 执行测试
-
-			test.Opts.Args = append([]string{"echo"}, test.Opts.Args...)
 			stdout := test.Opts.Stdout.(*bytes.Buffer)
 			stderr := test.Opts.Stderr.(*bytes.Buffer)
 
-			errno := Cat(context.Background(), test.Opts)
-
 			// 验证错误码
-			if errno != test.Errno {
+			if errno := New(test.Opts).Main(append([]string{"echo"}, test.Args...)); errno != test.Errno {
 				t.Fatalf("Unexpected errno: got %d, want %d", errno, test.Errno)
 			}
 

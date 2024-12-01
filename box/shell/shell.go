@@ -5,9 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
-	"strings"
 
-	"github.com/zooyer/regis/agent/cmd/command"
+	"github.com/zooyer/gobox/types"
 )
 
 type GNUOption struct {
@@ -94,57 +93,17 @@ func bindOption(set *flag.FlagSet, v any) (err error) {
 	return
 }
 
-func writeError(attr command.Attr, err error) {
-	_, _ = fmt.Fprintln(attr.Stderr, "shell:", err)
+func writeError(opt types.Option, err error) {
+	_, _ = fmt.Fprintln(opt.Stderr, "shell:", err)
 }
 
-// 判断是否需要继续读取
-func needsContinuation(end, input string) (string, bool) {
-	input = strings.TrimSpace(input)
-
-	var index int
-	if end != "" {
-		if index = strings.Index(input, end); index == -1 {
-			return end, true
-		}
-
-		input = input[index:]
+func deferClose(err *error, close func() error) {
+	if close == nil {
+		return
 	}
 
-	if len(input) == 0 {
-		return "", false
+	var e = close()
+	if err != nil && *err == nil {
+		*err = e
 	}
-
-	for len(input) > 0 {
-		if end != "" {
-			if index = strings.Index(input, end); index == -1 {
-				return end, true
-			}
-
-			end = ""
-			input = input[index:]
-		}
-
-		for begin, unit := range beginUints {
-			if index = strings.Index(input, begin); index < 0 {
-				continue
-			}
-
-			if index += len(begin); index < len(input) {
-				input = input[index:]
-			} else {
-				input = input[:]
-			}
-
-			_, end = unit.Token()
-
-			break
-		}
-	}
-
-	return end, true
-}
-
-func parseCommand() {
-
 }
